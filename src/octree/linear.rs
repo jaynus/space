@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    morton::{Morton, MortonMap, MortonRegionMap, MortonRegion, MortonWrapper, morton_levels},
+    octree::Folder,
+};
 
 /// A linear hashed octree. This has constant time lookup for a given region or morton code.
 ///
@@ -32,8 +35,8 @@ pub struct LinearOctree<T, M> {
 }
 
 impl<T, M> Default for LinearOctree<T, M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     /// Create a default, empty linear Octree
     ///
@@ -45,7 +48,7 @@ where
     fn default() -> Self {
         let mut internals = MortonRegionMap::default();
         internals.insert(MortonRegion::default(), M::null());
-        LinearOctree {
+        Self {
             leaves: MortonMap::<_, M>::default(),
             internals,
         }
@@ -53,19 +56,61 @@ where
 }
 
 impl<T, M> LinearOctree<T, M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     /// Create an empty octree. Calls Default impl.
     ///
     /// ```
     /// use space::LinearOctree;
-    /// let mut tree = LinearOctree::<String, u64>::new();
-    ///
+    /// let tree = LinearOctree::<String, u64>::new();
     /// ```
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
+
+    /// Get iterator to the underlying MortonMap
+    /// ```
+    /// use space::{MortonWrapper, LinearOctree};
+    /// let mut tree = LinearOctree::<String, u64>::new();
+    /// let test_data = vec![
+    ///     (1 as u64, "One".to_string()),
+    ///     (2 as u64, "Two".to_string()),
+    ///     (3 as u64, "Three".to_string())
+    /// ];
+    /// test_data.iter().for_each(|(m, v)| tree.insert(*m, v.clone()));
+    ///
+    /// for (m, v) in tree.iter() {
+    ///     assert!(test_data.contains(&(m.0, v.clone())));
+    /// }
+    /// ```
+    pub fn iter(&self) -> impl Iterator<Item = (&MortonWrapper<M>, &T)> {
+        self.leaves.iter()
+    }
+
+    /// Get mutable iterator to the underlying MortonMap
+    /// ```
+    /// use space::{MortonWrapper, LinearOctree};
+    /// let mut tree = LinearOctree::<String, u64>::new();
+    /// let test_data = vec![
+    ///     (1 as u64, "One".to_string()),
+    ///     (2 as u64, "Two".to_string()),
+    ///     (3 as u64, "Three".to_string())
+    /// ];
+    /// test_data.iter().for_each(|(m, v)| tree.insert(*m, v.clone()));
+    ///
+    /// for (m, mut v) in tree.iter_mut() {
+    ///     assert!(test_data.contains(&(m.0, v.clone())));
+    ///     *v = "balls".to_string();
+    /// }
+    /// for (m, v) in tree.iter() {
+    ///     assert_eq!(v, "balls");
+    /// }
+    /// ```
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&MortonWrapper<M>, &mut T)> {
+        self.leaves.iter_mut()
+    }
+
 
     /// Inserts the item into the octree.
     ///
@@ -166,9 +211,9 @@ where
     /// with each gather operation always gathering `1` leaf and each `fold` operation gathering no more
     /// than `8` other fold sums.
     pub fn collect_fold<F>(&self, folder: &F) -> MortonRegionMap<F::Sum, M>
-    where
-        F: Folder<T, M>,
-        F::Sum: Clone,
+        where
+            F: Folder<T, M>,
+            F::Sum: Clone,
     {
         let mut map = MortonRegionMap::default();
         self.collect_fold_region(MortonRegion::base(), folder, &mut map);
@@ -182,9 +227,9 @@ where
         folder: &F,
         map: &mut MortonRegionMap<F::Sum, M>,
     ) -> Option<F::Sum>
-    where
-        F: Folder<T, M>,
-        F::Sum: Clone,
+        where
+            F: Folder<T, M>,
+            F::Sum: Clone,
     {
         match self.internals.get(&region) {
             Some(m) if !m.is_null() => {
@@ -209,14 +254,14 @@ where
 }
 
 impl<T, M> Extend<(M, T)> for LinearOctree<T, M>
-where
-    M: Morton + Default,
+    where
+        M: Morton + Default,
 {
     fn extend<I>(&mut self, it: I)
-    where
-        I: IntoIterator<Item = (M, T)>,
+        where
+            I: IntoIterator<Item = (M, T)>,
     {
-        for (morton, item) in it.into_iter() {
+        for (morton, item) in it {
             self.insert(morton, item);
         }
     }

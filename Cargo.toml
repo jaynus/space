@@ -12,7 +12,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-nalgebra = { version = "0.16.3", default-features = false }
+nalgebra = { version = "0.18", default-features = false }
 num-traits = { version = "0.2.6", default-features = false }
 itertools = { version = "0.7.8", default-features = false }
 either = { version = "1.5.0", default-features = false }

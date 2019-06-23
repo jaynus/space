@@ -23,13 +23,13 @@ pub trait Folder<Item, M> {
 
     /// `fold` is allowed to assume the `it` gives at least one item and no more than 8 items.
     fn fold<I>(&self, it: I) -> Self::Sum
-    where
-        I: Iterator<Item = Self::Sum>;
+        where
+            I: Iterator<Item = Self::Sum>;
 }
 
 impl<Item, M, F> Folder<Item, M> for &F
-where
-    F: Folder<Item, M>,
+    where
+        F: Folder<Item, M>,
 {
     type Sum = F::Sum;
 
@@ -38,8 +38,8 @@ where
     }
 
     fn fold<I>(&self, it: I) -> Self::Sum
-    where
-        I: Iterator<Item = Self::Sum>,
+        where
+            I: Iterator<Item = Self::Sum>,
     {
         (*self).fold(it)
     }
@@ -129,8 +129,8 @@ impl<Item, M> Folder<Item, M> for NullFolder {
     fn gather<'a>(&self, _: M, _: &'a Item) -> Self::Sum {}
 
     fn fold<I>(&self, _: I) -> Self::Sum
-    where
-        I: Iterator<Item = Self::Sum>,
+        where
+            I: Iterator<Item = Self::Sum>,
     {
     }
 }
@@ -153,9 +153,9 @@ impl LeveledRegion {
     /// assert!(region.discretize::<f32, u64>(outside_bounds).is_none());
     /// ```
     pub fn discretize<S, M>(self, point: Vector3<S>) -> Option<M>
-    where
-        S: Float + ToPrimitive + FromPrimitive + std::fmt::Debug + 'static,
-        M: Morton + std::fmt::Debug + 'static,
+        where
+            S: Float + ToPrimitive + FromPrimitive + std::fmt::Debug + 'static,
+            M: Morton + std::fmt::Debug + 'static,
     {
         let bound = (S::one() + S::one()).powi(self.0);
         if point.iter().any(|n| n.abs() > bound) {

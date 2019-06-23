@@ -1,4 +1,5 @@
-use crate::*;
+use crate::morton::{MortonRegion, MortonRegionCache, Morton};
+use crate::octree::Folder;
 
 use itertools::Itertools;
 
@@ -17,7 +18,7 @@ pub struct Oct<T> {
 
 impl<T> Oct<T> {
     pub fn new(children: [T; 8]) -> Self {
-        Oct { children }
+        Self { children }
     }
 }
 
@@ -35,7 +36,7 @@ impl<T, M> Default for PointerOctree<T, M> {
     ///
     /// ```
     fn default() -> Self {
-        PointerOctree {
+        Self {
             tree: Internal::default(),
             count: 0,
         }
@@ -78,8 +79,7 @@ where
                         let subindex = morton.get_level(i);
                         Continue((&children[subindex], i))
                     }
-                    Internal::Leaf(_, _) => Done((node, old_ix)),
-                    Internal::None => Done((node, old_ix)),
+                    Internal::Leaf(_, _) | Internal::None  => Done((node, old_ix)),
                 }
             })
             .into_inner();
@@ -125,8 +125,7 @@ where
                         let subindex = morton.get_level(i);
                         Continue((&mut children[subindex], i))
                     }
-                    Internal::Leaf(_, _) => Done((node, old_ix)),
-                    Internal::None => Done((node, old_ix)),
+                    Internal::Leaf(_, _) | Internal::None  => Done((node, old_ix)),
                 }
             })
             .into_inner();
@@ -171,8 +170,7 @@ where
                         let subindex = morton.get_level(i);
                         Continue((&mut children[subindex], i))
                     }
-                    Internal::Leaf(_, _) => Done((node, old_ix)),
-                    Internal::None => Done((node, old_ix)),
+                    Internal::Leaf(_, _) | Internal::None => Done((node, old_ix)),
                 }
             })
             .into_inner();
@@ -257,8 +255,7 @@ where
                         let subindex = morton.get_level(i);
                         Continue((&mut children[subindex], i))
                     }
-                    Internal::Leaf(_, _) => Done((node, old_ix)),
-                    Internal::None => Done((node, old_ix)),
+                    Internal::Leaf(_, _) | Internal::None => Done((node, old_ix)),
                 }
             })
             .into_inner();
@@ -404,7 +401,7 @@ where
     where
         I: IntoIterator<Item = (M, T)>,
     {
-        for (m, item) in it.into_iter() {
+        for (m, item) in it {
             self.insert(m, item);
         }
     }
@@ -780,27 +777,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, region)) = self.nodes.pop() {
             // If we shouldn't go further into the region, then its time to do a random sample starting here.
-            if !(self.explore)(region) {
-                trace!("chose not to go further");
-                // If we reach the depth we want or `further` is false, then we must start the random sampling.
-                if let Some(r) = self.cache.get_mut(&region).cloned().or_else(|| {
-                    // We have to make sure this node is not None or else we can't gather it.
-                    // This is because `gather` must be guaranteed that its not passed an empty iterator.
-                    node.fold_rand(
-                        region,
-                        self.depth,
-                        &self.folder,
-                        &mut self.cache,
-                        &mut self.rng,
-                    )
-                    .map(|item| {
-                        self.cache.insert(region, item.clone());
-                        item
-                    })
-                }) {
-                    return Some((region, r));
-                }
-            } else {
+            if (self.explore)(region) {
                 match node {
                     Internal::Node(box Oct { ref children }) => {
                         trace!("traversing deeper due to node at level {}", region.level);
@@ -820,6 +797,26 @@ where
                         return Some((region, item));
                     }
                     _ => {}
+                }
+            } else {
+                trace!("chose not to go further");
+                // If we reach the depth we want or `further` is false, then we must start the random sampling.
+                if let Some(r) = self.cache.get_mut(&region).cloned().or_else(|| {
+                    // We have to make sure this node is not None or else we can't gather it.
+                    // This is because `gather` must be guaranteed that its not passed an empty iterator.
+                    node.fold_rand(
+                        region,
+                        self.depth,
+                        &self.folder,
+                        &mut self.cache,
+                        &mut self.rng,
+                    )
+                        .map(|item| {
+                            self.cache.insert(region, item.clone());
+                            item
+                        })
+                }) {
+                    return Some((region, r));
                 }
             }
         }
@@ -871,7 +868,13 @@ where
             match node {
                 Internal::Node(box Oct { ref children }) => {
                     // If we shouldn't go further into the region, then take the first thing from the iterator.
-                    if !(self.explore)(region) {
+                    if (self.explore)(region) {
+                        trace!("traversing deeper due to node at level {}", region.level);
+                        // Traverse deeper (we already checked if we didn't need to go further).
+                        for (ix, child) in children.iter().enumerate() {
+                            self.nodes.push((child, region.enter(ix)));
+                        }
+                    } else {
                         trace!("chose not to go further");
                         return Some(
                             node.iter()
@@ -879,12 +882,6 @@ where
                                 .map(|(m, t)| (region, m, t))
                                 .expect("SimpleExploreIter::next(): internal node had no leaves"),
                         );
-                    } else {
-                        trace!("traversing deeper due to node at level {}", region.level);
-                        // Traverse deeper (we already checked if we didn't need to go further).
-                        for (ix, child) in children.iter().enumerate() {
-                            self.nodes.push((child, region.enter(ix)));
-                        }
                     }
                 }
                 Internal::Leaf(ref item, morton) => {

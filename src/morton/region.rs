@@ -1,4 +1,5 @@
-use crate::*;
+use crate::morton::Morton;
+
 use nalgebra::Vector3;
 use num_traits::{Float, FromPrimitive, ToPrimitive};
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
@@ -25,7 +26,7 @@ where
     /// This gets the top level region (everything in the finite space).
     #[inline]
     pub fn base() -> Self {
-        MortonRegion {
+        Self {
             morton: M::zero(),
             level: 0,
         }
@@ -94,7 +95,7 @@ where
     /// Iterates over subregions of a region. Uses `explore` to limit the exploration space.
     pub fn iter<E>(self, explore: E) -> MortonRegionIterator<M, E>
     where
-        E: FnMut(MortonRegion<M>) -> bool,
+        E: FnMut(Self) -> bool,
     {
         MortonRegionIterator {
             nodes: vec![self],
@@ -172,7 +173,7 @@ where
 {
     #[inline]
     fn default() -> Self {
-        MortonRegion::base()
+        Self::base()
     }
 }
 
@@ -200,6 +201,7 @@ where
         let v = self.morton;
         let cut = M::dim_bits() - self.level;
         let point = (v >> (3 * cut)).decode();
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let scale = (S::one() + S::one()).powi(-(self.level as i32));
 
         point.map(|d| {
@@ -236,7 +238,7 @@ where
     /// Takes a region to iterate over and a closure to limit the exploration space.
     /// This will traverse through `8/7 * 8^(limit - region.level)` nodes, so mind the limit.
     pub fn new(region: MortonRegion<M>, explore: E) -> Self {
-        MortonRegionIterator {
+        Self {
             nodes: vec![region],
             explore,
         }

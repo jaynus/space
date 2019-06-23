@@ -1,4 +1,4 @@
-use crate::*;
+use crate::morton::Morton;
 use nalgebra::Vector3;
 use num_traits::{Float, FromPrimitive, ToPrimitive};
 use std::hash::{Hash, Hasher};
@@ -18,7 +18,7 @@ where
 {
     #[inline]
     fn default() -> Self {
-        MortonWrapper(M::zero())
+        Self(M::zero())
     }
 }
 
@@ -44,14 +44,17 @@ where
     #[inline]
     fn from(point: Vector3<S>) -> Self {
         let point = point.map(|d| {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+            let d = d * (S::one() + S::one()).powi(M::dim_bits() as i32);
             M::from_u64(
-                (d * (S::one() + S::one()).powi(M::dim_bits() as i32))
+
+                d
                     .to_u64()
                     .unwrap(),
             )
             .unwrap()
         });
-        MortonWrapper(M::encode(point))
+        Self(M::encode(point))
     }
 }
 
@@ -63,6 +66,7 @@ where
     #[inline]
     fn into(self) -> Vector3<S> {
         let point = self.0.decode();
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let scale = (S::one() + S::one()).powi(-(M::dim_bits() as i32));
 
         point.map(|d| {

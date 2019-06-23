@@ -36,56 +36,56 @@ pub type MortonCache<T, M> = lru_cache::LruCache<MortonWrapper<M>, T, MortonBuil
 
 /// Create a `MortonRegionMap`.
 pub fn region_map<T, M>() -> MortonRegionMap<T, M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     MortonRegionMap::default()
 }
 
 /// Create a `MortonRegionSet`.
 pub fn region_set<M>() -> MortonRegionSet<M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     MortonRegionSet::default()
 }
 
 /// Create a `MortonMap`.
 pub fn morton_map<T, M>() -> MortonMap<T, M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     MortonMap::default()
 }
 
 /// Create a `MortonSet`.
 pub fn morton_set<T, M>() -> MortonSet<M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     MortonSet::default()
 }
 
 /// Create a `MortonRegionCache`.
 pub fn region_cache<T, M>(size: usize) -> MortonRegionCache<T, M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     MortonRegionCache::with_hasher(size, MortonBuildHasher::default())
 }
 
 /// Create a `MortonCache`.
 pub fn morton_cache<T, M>(size: usize) -> MortonCache<T, M>
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     MortonCache::with_hasher(size, MortonBuildHasher::default())
 }
 
 /// Invalidates pieces of a cache when something is changed at this particular morton.
 pub fn invalidate_region_cache<T, M>(morton: M, cache: &mut MortonRegionCache<T, M>)
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     // Also remove the base region.
     cache.remove(&MortonRegion::base());
@@ -99,8 +99,8 @@ pub fn region_map_difference<'a, T, U, M>(
     primary: &'a MortonRegionMap<T, M>,
     secondary: &'a MortonRegionMap<U, M>,
 ) -> impl Iterator<Item = MortonRegion<M>> + 'a
-where
-    M: Morton,
+    where
+        M: Morton,
 {
     primary.keys().filter_map(move |&k| {
         if secondary.get(&k).is_none() {
@@ -225,7 +225,7 @@ impl Morton for u64 {
     #[inline]
     fn encode(dims: Vector3<Self>) -> Self {
         let [x, y, z]: [Self; 3] = dims.into();
-        let bits = 0x1_249_249_249_249_249u64;
+        let bits = 0x1_249_249_249_249_249_u64;
         z.pdep(bits << 2) | y.pdep(bits << 1) | x.pdep(bits)
     }
 
@@ -240,7 +240,7 @@ impl Morton for u64 {
     /// ```
     #[inline]
     fn decode(self) -> Vector3<Self> {
-        let bits = 0x1_249_249_249_249_249u64;
+        let bits = 0x1_249_249_249_249_249_u64;
         let (x, y, z) = (self.pext(bits), self.pext(bits << 1), self.pext(bits << 2));
         Vector3::new(x & Self::used_bits(), y, z)
     }
@@ -259,8 +259,8 @@ impl Morton for u128 {
     /// assert_eq!(morton_code, 53);
     /// ```
     #[inline]
-    #[allow(clippy::cast_lossless)]
-    fn encode(dims: Vector3<Self>) -> u128 {
+    #[allow(clippy::cast_lossless, clippy::cast_possible_truncation)]
+    fn encode(dims: Vector3<Self>) -> Self {
         let [x, y, z]: [Self; 3] = dims.into();
         let highx = (x >> 21) & ((1 << 21) - 1);
         let lowx = x & ((1 << 21) - 1);
@@ -270,7 +270,7 @@ impl Morton for u128 {
         let lowz = z & ((1 << 21) - 1);
         let high = u64::encode([highx as u64, highy as u64, highz as u64].into());
         let low = u64::encode([lowx as u64, lowy as u64, lowz as u64].into());
-        (high as u128) << 63 | low as u128
+        (high as Self) << 63 | low as Self
     }
 
     /// Decode a u128 morton to its associated Vector3<u128>
@@ -278,21 +278,21 @@ impl Morton for u128 {
     /// ```
     /// use space::Morton;
     /// use nalgebra::Vector3;
-    ///
+    ///u128
     /// let coordinates = Morton::decode(53);
     /// assert_eq!(coordinates, Vector3::<u128>::new(1, 2, 3));
     /// ```
     #[inline]
-    #[allow(clippy::cast_lossless)]
+    #[allow(clippy::cast_lossless, clippy::cast_possible_truncation)]
     fn decode(self) -> Vector3<Self> {
         let low = self as u64;
         let high = (self >> 63) as u64;
         let [lowx, lowy, lowz]: [u64; 3] = low.decode().into();
         let [highx, highy, highz]: [u64; 3] = high.decode().into();
         Vector3::new(
-            (highx << 21 | lowx) as u128,
-            (highy << 21 | lowy) as u128,
-            (highz << 21 | lowz) as u128,
+            (highx << 21 | lowx) as Self,
+            (highy << 21 | lowy) as Self,
+            (highz << 21 | lowz) as Self,
         )
     }
 }
@@ -395,7 +395,7 @@ impl Hasher for MortonHash {
     /// assert_eq!(hash.finish(), 12638158613253308507);
     ///```
     #[inline(always)]
-    #[allow(clippy::unreadable_literal)]
+    #[allow(clippy::unreadable_literal, clippy::cast_lossless, clippy::cast_possible_truncation)]
     fn write_u128(&mut self, i: u128) {
         let bottom_mask = (1 << CACHE_LOCALITY_BITS) - 1;
         let bottom = i & bottom_mask;
