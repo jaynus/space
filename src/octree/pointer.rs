@@ -912,7 +912,7 @@ mod tests {
         let mut zrng = SmallRng::from_seed([0; 16]);
 
         let mut octree = PointerOctree::<_, u128>::new();
-        let space = LeveledRegion(0);
+        let space = crate::octree::LeveledRegion(0);
         octree.extend(
             izip!(
                 xrng.sample_iter(&Open01),

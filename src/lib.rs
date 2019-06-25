@@ -16,6 +16,8 @@
 pub mod morton;
 pub mod octree;
 
+pub use morton::*;
+pub use octree::*;
 
 pub trait StorageAccess<'a, T: 'a, K> {
     type Iter: Iterator<Item=(K, &'a T)>;

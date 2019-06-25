@@ -47,7 +47,6 @@ where
             #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
             let d = d * (S::one() + S::one()).powi(M::dim_bits() as i32);
             M::from_u64(
-
                 d
                     .to_u64()
                     .unwrap(),

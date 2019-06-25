@@ -278,7 +278,7 @@ impl Morton for u128 {
     /// ```
     /// use space::Morton;
     /// use nalgebra::Vector3;
-    ///u128
+    ///
     /// let coordinates = Morton::decode(53);
     /// assert_eq!(coordinates, Vector3::<u128>::new(1, 2, 3));
     /// ```
