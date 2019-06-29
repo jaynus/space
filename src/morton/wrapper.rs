@@ -10,6 +10,7 @@ use std::hash::{Hash, Hasher};
 /// - `From<Vector3<S>>`
 /// - `Into<Vector3<S>>`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MortonWrapper<M>(pub M);
 
 impl<M> Default for MortonWrapper<M>
